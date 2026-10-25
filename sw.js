@@ -1,5 +1,5 @@
 /* Service worker de ElectroPresupuesto: guarda la app para usarla sin internet. */
-const VERSION = 'ep-v4';
+const VERSION = 'ep-v5';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
