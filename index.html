@@ -61,6 +61,14 @@ main{flex:1;min-width:0;padding-block:18px 110px;padding-left:max(16px,env(safe-
 .nav button svg{width:24px;height:24px}
 .nav button[aria-current="page"]{color:var(--yellow)}
 .nav .brandrow{display:none}
+.nav button.hm{display:none}.nav .l-l{display:none}
+.paybar{border-radius:10px;padding:16px;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.paybar h2{font-size:30px;text-transform:uppercase;letter-spacing:.04em}
+.paybar p{margin-top:2px}
+.paybar.pend{background:var(--yellow);color:var(--yellow-ink)}
+.paybar.paid{background:var(--ok-bg);color:var(--ok)}
+.stats.s3 .stat:last-child{grid-column:1/-1}
+@media (min-width:760px){.stats.s3{grid-template-columns:repeat(3,1fr)}.stats.s3 .stat:last-child{grid-column:auto}}
 
 @media (min-width:900px){
   #app{flex-direction:row}
@@ -68,6 +76,7 @@ main{flex:1;min-width:0;padding-block:18px 110px;padding-left:max(16px,env(safe-
   body::before{display:none}
   .nav{position:sticky;top:0;align-self:flex-start;height:100vh;width:236px;flex:none;flex-direction:column;justify-content:flex-start;gap:4px;border-top:0;border-right:2px solid var(--yellow);
     padding:18px 12px;color:var(--chrome-ink)}
+  .nav button.hm{display:flex}.nav .l-l{display:inline}.nav .l-s{display:none}
   .nav .brandrow{display:flex;color:var(--chrome-ink);padding:4px 8px 18px}
   .nav button{flex:none;flex-direction:row;gap:12px;font-size:15px;padding:0 12px;min-height:48px;justify-content:flex-start}
   main{padding-block:28px 60px}
@@ -132,7 +141,8 @@ main{flex:1;min-width:0;padding-block:18px 110px;padding-left:max(16px,env(safe-
 .badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
 .b-borrador{background:var(--surface-2);color:var(--mute);border:1px solid var(--line)}
 .b-enviado{background:var(--info-bg);color:var(--info)}
-.b-aceptado{background:var(--ok-bg);color:var(--ok)}
+.b-aceptado{background:var(--yellow);color:var(--yellow-ink)}
+.b-pagado{background:var(--ok-bg);color:var(--ok)}
 .b-rechazado{background:var(--bad-bg);color:var(--bad)}
 .b-vencido{background:var(--warn-bg);color:var(--warn)}
 
@@ -304,6 +314,7 @@ var IC={
  down:'<path d="M12 3v12M7 11l5 5 5-5M4 21h16"/>',
  chat:'<path d="M4 4h16v12H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
  check:'<path d="m5 12 5 5 9-10"/>',
+ done:'<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
  x:'<path d="M6 6l12 12M18 6 6 18"/>',
  search:'<circle cx="11" cy="11" r="6.5"/><path d="m16 16 5 5"/>',
  back:'<path d="M15 5l-7 7 7 7"/>',
@@ -410,7 +421,7 @@ function linesFrom(c,q){
   return L;
 }
 function effStatus(q){return (q.status==='enviado'&&q.validUntil&&q.validUntil<todayISO())?'vencido':q.status}
-var STATUS={borrador:'Borrador',enviado:'Enviado',aceptado:'Aceptado',rechazado:'Rechazado',vencido:'Vencido'};
+var STATUS={borrador:'Borrador',enviado:'Enviado',aceptado:'Pendiente de pago',rechazado:'Rechazado',vencido:'Vencido',pagado:'Pagado'};
 function badge(st){return '<span class="badge b-'+st+'">'+STATUS[st]+'</span>'}
 function clientById(id){return DB.clients.filter(function(c){return c.id===id})[0]}
 function syncClient(q){
@@ -612,7 +623,7 @@ async function saveFile(name,data,mime){
 }
 
 /* ============ Estado y navegación ============ */
-var S={view:'home',draft:null,dirty:false,tried:false,q:'',f:'todos',client:null,newClientOpen:false,waOpen:false,waText:null,exportErr:null,settings:null,setErr:null};
+var S={view:'home',draft:null,dirty:false,tried:false,q:'',dq:'',f:'todos',client:null,newClientOpen:false,waOpen:false,waText:null,exportErr:null,settings:null,setErr:null};
 var main=$('#main');
 function toast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;$('#toasts').appendChild(t);setTimeout(function(){t.remove()},4200)}
 function ask(msg,ok,danger){
@@ -629,16 +640,16 @@ async function go(view,p){
   Object.assign(S,p||{});S.view=view;S.exportErr=null;
   render();window.scrollTo(0,0);
 }
-var NAV=[['home','Inicio','home'],['quotes','Presupuestos','doc'],['clients','Clientes','users'],['settings','Mi negocio','gear'],['stats','Estadísticas','chart']];
+var NAV=[['home','Inicio','Inicio','home'],['quotes','Presupuestos','Presupuestos','doc'],['done','Realizados','Trabajos realizados','done'],['clients','Clientes','Clientes','users'],['settings','Mi negocio','Mi negocio','gear'],['stats','Estadísticas','Estadísticas','chart',1]];
 function renderNav(){
-  var cur=S.view==='edit'||S.view==='doc'?'quotes':(S.view==='client-edit'?'clients':S.view);
+  var cur=S.view==='edit'||S.view==='doc'?((S.draft&&S.draft.status==='pagado')?'done':'quotes'):(S.view==='client-edit'?'clients':S.view);
   $('#nav').innerHTML='<div class="brand brandrow"><span class="brand-mark">'+ic('bolt')+'</span><span><b>ElectroPresupuesto</b><small>Presupuestos eléctricos</small></span></div>'+
-    NAV.map(function(n){return '<button data-go="'+n[0]+'"'+(cur===n[0]?' aria-current="page"':'')+'>'+ic(n[2])+'<span>'+n[1]+'</span></button>'}).join('');
+    NAV.map(function(n){return '<button data-go="'+n[0]+'"'+(n[4]?' class="hm"':'')+(cur===n[0]?' aria-current="page"':'')+'>'+ic(n[3])+'<span class="l-s">'+n[1]+'</span><span class="l-l">'+n[2]+'</span></button>'}).join('');
 }
 function render(){
   renderNav();
   var h='';
-  switch(S.view){case 'home':h=vHome();break;case 'quotes':h=vQuotes();break;case 'edit':h=vEdit();break;case 'doc':h=vDoc();break;case 'clients':h=vClients();break;case 'client-edit':h=vClientEdit();break;case 'settings':h=vSettings();break;case 'stats':h=vStats();break}
+  switch(S.view){case 'home':h=vHome();break;case 'quotes':h=vQuotes();break;case 'edit':h=vEdit();break;case 'doc':h=vDoc();break;case 'clients':h=vClients();break;case 'client-edit':h=vClientEdit();break;case 'settings':h=vSettings();break;case 'stats':h=vStats();break;case 'done':h=vDone();break}
   main.innerHTML='<div class="page">'+(storageOK?'':'<div class="alert warn">'+ic('warn')+'<div><b>Tus datos no se están guardando.</b><br>Este navegador bloquea el almacenamiento. Lo que cargues se pierde al cerrar. Descargá una copia de seguridad desde "Mi negocio".</div></div>')+h+'</div>';
   if(S.view==='edit')refreshCalc();
 }
@@ -647,10 +658,10 @@ $('#topNew').innerHTML=ic('plus')+'<span>Nuevo</span>';
 
 /* ============ Vistas ============ */
 function stats(){
-  var q=DB.quotes,mo=todayISO().slice(0,7),r={n:q.length,pend:0,acc:0,rej:0,exp:0,draft:0,sent:0,month:0,accAmt:0,pendAmt:0};
+  var q=DB.quotes,mo=todayISO().slice(0,7),r={n:q.length,pend:0,acc:0,rej:0,exp:0,draft:0,sent:0,month:0,accAmt:0,pendAmt:0,paid:0,paidAmt:0,toCollect:0,toCollectAmt:0};
   q.forEach(function(x){var st=effStatus(x),t=calc(x).total;
     if(st==='borrador')r.draft++;if(st!=='borrador')r.sent++;
-    if(st==='enviado'){r.pend++;r.pendAmt+=t}if(st==='aceptado'){r.acc++;r.accAmt+=t}if(st==='rechazado')r.rej++;if(st==='vencido')r.exp++;
+    if(st==='enviado'){r.pend++;r.pendAmt+=t}if(st==='aceptado'){r.acc++;r.accAmt+=t;r.toCollect++;r.toCollectAmt+=t}if(st==='pagado'){r.acc++;r.accAmt+=t;r.paid++;r.paidAmt+=t}if(st==='rechazado')r.rej++;if(st==='vencido')r.exp++;
     if(st!=='borrador'&&x.createdAt.slice(0,7)===mo)r.month+=t;
   });return r;
 }
@@ -662,7 +673,7 @@ function vHome(){
   h+='<div class="stats">'+
     '<div class="stat"><span class="k">Presupuestos creados</span><span class="v num">'+s.n+'</span><span class="n">'+s.draft+' en borrador</span></div>'+
     '<div class="stat"><span class="k">Pendientes de aceptación</span><span class="v num">'+s.pend+'</span><span class="n">'+(s.pend?money(s.pendAmt)+' en espera':'Enviados y vigentes')+'</span></div>'+
-    '<div class="stat"><span class="k">Aceptados</span><span class="v num">'+s.acc+'</span><span class="n">'+(s.acc?money(s.accAmt)+' en total':'Aún ninguno')+'</span></div>'+
+    '<div class="stat"><span class="k">Aceptados</span><span class="v num">'+s.acc+'</span><span class="n">'+(s.toCollect?money(s.toCollectAmt)+' por cobrar ('+s.toCollect+')':(s.acc?'Todo cobrado':'Aún ninguno'))+'</span></div>'+
     '<div class="stat hl"><span class="k">Presupuestado este mes</span><span class="v money num">'+money(s.month)+'</span><span class="n">No incluye borradores</span></div></div>';
   if(!DB.quotes.length){
     var d1=!!(set.comercial.trim()||set.nombre.trim())&&!!set.tel.trim(),d2=DB.clients.length>0;
@@ -676,7 +687,7 @@ function vHome(){
   }
   h+='<section><div class="sec-h"><h2>Accesos</h2></div><div class="actions">'+
    act('newQuote','plus','Crear presupuesto','Materiales, mano de obra y totales',true)+act('go:quotes','doc','Presupuestos guardados','Buscá, filtrá y descargá el PDF')+
-   act('go:clients','users','Clientes','Registrá y administrá tus clientes')+act('go:settings','gear','Mi negocio','Datos, logo y condiciones')+act('go:stats','chart','Estadísticas','Cómo vienen tus presupuestos')+'</div></section>';
+   act('go:done','done','Trabajos realizados','Presupuestos ya cobrados')+act('go:clients','users','Clientes','Registrá y administrá tus clientes')+act('go:settings','gear','Mi negocio','Datos, logo y condiciones')+act('go:stats','chart','Estadísticas','Cómo vienen tus presupuestos')+'</div></section>';
   return h;
 }
 function act(a,i,t,d,main){
@@ -686,17 +697,17 @@ function act(a,i,t,d,main){
 function qItem(q){
   var c=calc(q),st=effStatus(q);
   return '<button class="qi" data-act="openQuote" data-id="'+q.id+'"><div><span class="no">N° '+numNo(q.number||0)+'</span> '+badge(st)+'</div><div class="tot num">'+money(c.total)+'</div>'+
-   '<div class="meta">'+esc(q.client.name||'Sin cliente')+(q.serviceType?' · '+esc(q.serviceType):'')+'</div><div class="meta r2">'+fmtDate(q.createdAt)+'</div></button>';
+   '<div class="meta">'+esc(q.client.name||'Sin cliente')+(q.serviceType?' · '+esc(q.serviceType):'')+'</div><div class="meta r2">'+(st==='pagado'&&q.paidAt?'Pagado el '+fmtDT(q.paidAt):fmtDate(q.createdAt))+'</div></button>';
 }
 function vQuotes(){
-  var all=DB.quotes,term=S.q.trim().toLowerCase();
+  var all=DB.quotes.filter(function(q){return q.status!=='pagado'}),term=S.q.trim().toLowerCase();
   var list=all.filter(function(q){
     var st=effStatus(q);if(S.f!=='todos'&&st!==S.f)return false;
     if(!term)return true;return numNo(q.number||0).indexOf(term.replace(/^n°?\s*/,''))>=0||(q.client.name||'').toLowerCase().indexOf(term)>=0;
   }).sort(function(a,b){return (b.number||0)-(a.number||0)});
   var cnt={todos:all.length};['borrador','enviado','aceptado','rechazado','vencido'].forEach(function(s){cnt[s]=all.filter(function(q){return effStatus(q)===s}).length});
   var h='<div class="ph"><div><h1>Presupuestos</h1><p>'+all.length+' guardado'+(all.length===1?'':'s')+'</p></div><button class="btn pri" data-act="newQuote">'+ic('plus')+'Nuevo</button></div>';
-  if(!all.length)return h+'<div class="card empty">'+ic('doc')+'<h3>Todavía no creaste presupuestos</h3><p>Cuando guardes el primero, lo vas a ver acá con su estado y su importe.</p><button class="btn pri" data-act="newQuote">Crear el primero</button></div>';
+  if(!all.length)return h+'<div class="card empty">'+ic('doc')+'<h3>'+(DB.quotes.length?'No tenés presupuestos en curso':'Todavía no creaste presupuestos')+'</h3><p>'+(DB.quotes.length?'Los presupuestos pagados están en Trabajos realizados.':'Cuando guardes el primero, lo vas a ver acá con su estado y su importe.')+'</p><button class="btn pri" data-act="newQuote">Crear el primero</button></div>';
   h+='<div class="fld"><label for="qsearch" class="lbl">Buscar por número o cliente</label><div class="adorn"><input id="qsearch" class="inp" type="search" value="'+esc(S.q)+'" placeholder="Ej.: 0003 o nombre del cliente"></div></div>';
   h+='<div class="chips" role="group" aria-label="Filtrar por estado">'+['todos','borrador','enviado','aceptado','rechazado','vencido'].map(function(s){return '<button class="chip" data-f="'+s+'" aria-pressed="'+(S.f===s)+'">'+(s==='todos'?'Todos':STATUS[s])+' ('+cnt[s]+')</button>'}).join('')+'</div>';
   h+='<div class="list" id="qlist">'+qListInner(list)+'</div>';return h;
@@ -807,8 +818,9 @@ function vDoc(){
   var q=S.draft;if(!q){S.view='quotes';return vQuotes()}
   var saved=isSaved(q),m=buildModel(q),st=effStatus(q);
   var h='<div class="ph"><div><button class="btn sm ghost" data-act="'+(saved&&!S.dirty?'toList':'backEdit')+'" style="margin-left:-12px">'+ic('back')+(saved&&!S.dirty?'Presupuestos':'Volver a editar')+'</button><h1>Presupuesto N° '+m.number+' '+badge(st)+'</h1><p>'+(saved?(S.dirty?'Tiene cambios sin guardar':'Guardado en este dispositivo'):'Vista previa. Todavía no está guardado.')+'</p></div></div>';
+  if(saved&&!S.dirty&&(q.status==='aceptado'||q.status==='pagado'))h+=payBar(q);
   h+='<div class="row-b">'+
-    ((q.status==='borrador')?'<button class="btn" data-act="backEdit">'+ic('edit')+'Editar</button>':'<button class="btn" data-act="modify">'+ic('edit')+'Modificar</button>')+
+    (q.status==='pagado'?'':(q.status==='borrador')?'<button class="btn" data-act="backEdit">'+ic('edit')+'Editar</button>':'<button class="btn" data-act="modify">'+ic('edit')+'Modificar</button>')+
     ((!saved||S.dirty)?'<button class="btn" data-act="saveDoc">'+ic('save')+'Guardar</button>':'')+
     '<button class="btn pri" data-act="pdf">'+ic('down')+'Descargar PDF</button><button class="btn" data-act="wa">'+ic('chat')+'WhatsApp</button>'+
     (saved?'<button class="btn" data-act="dup" data-id="'+q.id+'">'+ic('copy')+'Duplicar</button><button class="btn danger" data-act="delQuote" data-id="'+q.id+'">'+ic('trash')+'Eliminar</button>':'')+'</div>';
@@ -823,9 +835,9 @@ function vDoc(){
      '<p class="hint">'+(phone?'Se abrirá el chat con '+esc(q.client.tel)+'.':'Elegirás el contacto dentro de WhatsApp. Para abrir el chat directo, guardá el teléfono del cliente con código de país (+54).')+' Abrir WhatsApp no cambia el estado del presupuesto.</p></div>';
   }
   if(saved&&!S.dirty){
-    var opts=['enviado','aceptado','rechazado'].filter(function(s){return s!==q.status});
-    h+='<div class="card"><div class="lbl" style="margin-bottom:8px">Cambiar estado</div><div class="row-b">'+opts.map(function(s){return '<button class="btn sm" data-act="setStatus" data-s="'+s+'">Marcar como '+STATUS[s].toLowerCase()+'</button>'}).join('')+'</div>'+
-     (st==='vencido'?'<p class="hint" style="margin-top:8px">Este presupuesto enviado pasó su fecha de vencimiento. Si el cliente igualmente lo acepta, marcalo como aceptado.</p>':'')+'<p class="hint" style="margin-top:8px">El estado solo cambia cuando lo indicás. Descargar o compartir no lo modifica.</p></div>';
+    var opts=q.status==='pagado'?[]:['enviado','aceptado','rechazado'].filter(function(s){return s!==q.status});
+    if(opts.length)h+='<div class="card"><div class="lbl" style="margin-bottom:8px">Cambiar estado</div><div class="row-b">'+opts.map(function(s){return '<button class="btn sm" data-act="setStatus" data-s="'+s+'">Marcar como '+({enviado:'enviado',aceptado:'aceptado',rechazado:'rechazado'})[s]+'</button>'}).join('')+'</div>'+
+     (st==='vencido'?'<p class="hint" style="margin-top:8px">Este presupuesto enviado pasó su fecha de vencimiento. Si el cliente igualmente lo acepta, marcalo como aceptado y queda pendiente de pago.</p>':'')+'<p class="hint" style="margin-top:8px">El estado solo cambia cuando lo indicás. Descargar o compartir no lo modifica.</p></div>';
   }
   if(q.versions&&q.versions.length)h+='<div class="card"><div class="sec-h"><h2>Versiones anteriores</h2></div>'+q.versions.map(function(v,i){var c=calc(v.q);return '<details class="ver"><summary>Versión '+(i+1)+' · '+STATUS[v.status]+' el '+fmtDT(v.at)+' · '+money(c.total)+'</summary><p class="hint" style="margin-bottom:8px">Copia de lo que se había enviado antes de la modificación.</p><button class="btn sm" data-act="pdfVersion" data-i="'+i+'">'+ic('down')+'Descargar PDF de esta versión</button></details>'}).join('')+'</div>';
   h+='<div class="tw" style="padding:0">'+paper(m)+'</div>';
@@ -838,6 +850,28 @@ function waDefault(q,m){
 function waPhone(t){t=(t||'').trim();if(!/^\+?\s*54/.test(t))return '';var d=t.replace(/\D/g,'');return d.length>=10?d:''}
 function waHref(p,msg){return 'https://wa.me/'+(p||'')+'?text='+encodeURIComponent(msg)}
 
+function payBar(q){
+  var c=calc(q);
+  if(q.status==='aceptado')return '<div class="paybar pend"><div><h2>Pendiente de pago</h2><p>El cliente aceptó este presupuesto. Cuando cobres, marcalo como pagado. Total: <b class="num">'+money(c.total)+'</b></p></div><button class="btn dark" data-act="markPaid">'+ic('check')+'Marcar como pagado</button></div>';
+  return '<div class="paybar paid"><div><h2>Pagado</h2><p>Cobrado el '+fmtDT(q.paidAt||q.updatedAt||q.createdAt)+' por <b class="num">'+money(c.total)+'</b>. Trabajo realizado.</p></div><div class="row-b"><button class="btn sm" data-go="done">Ver trabajos realizados</button><button class="btn sm ghost danger" data-act="undoPaid">Deshacer pago</button></div></div>';
+}
+function doneList(){
+  var term=S.dq.trim().toLowerCase();
+  return DB.quotes.filter(function(q){
+    if(q.status!=='pagado')return false;if(!term)return true;
+    return numNo(q.number||0).indexOf(term.replace(/^n°?\s*/,''))>=0||(q.client.name||'').toLowerCase().indexOf(term)>=0;
+  }).sort(function(a,b){return (b.paidAt||'').localeCompare(a.paidAt||'')});
+}
+function doneInner(){var l=doneList();return l.length?l.map(qItem).join(''):'<div class="card empty">'+ic('search')+'<h3>Sin resultados</h3><p>Probá con otro número o con el nombre del cliente.</p></div>'}
+function vDone(){
+  var all=DB.quotes.filter(function(q){return q.status==='pagado'}),mo=todayISO().slice(0,7),tot=0,mon=0;
+  all.forEach(function(q){var t=calc(q).total;tot+=t;if((q.paidAt||q.createdAt).slice(0,7)===mo)mon+=t});
+  var h='<div class="ph"><div><h1>Trabajos realizados</h1><p>Presupuestos ya cobrados.</p></div></div>';
+  if(!all.length)return h+'<div class="card empty">'+ic('done')+'<h3>Todavía no hay trabajos realizados</h3><p>Cuando un cliente acepte un presupuesto y cobres, marcalo como pagado y aparece acá.</p><button class="btn" data-go="quotes">Ver presupuestos</button></div>';
+  h+='<div class="stats s3"><div class="stat"><span class="k">Trabajos realizados</span><span class="v num">'+all.length+'</span></div><div class="stat hl"><span class="k">Total cobrado</span><span class="v money num">'+money(tot)+'</span></div><div class="stat"><span class="k">Cobrado este mes</span><span class="v money num">'+money(mon)+'</span></div></div>';
+  h+='<div class="fld"><label for="dsearch" class="lbl">Buscar por número o cliente</label><input id="dsearch" class="inp" type="search" value="'+esc(S.dq)+'" placeholder="Ej.: 0003 o nombre del cliente"></div>';
+  return h+'<div class="list" id="dlist">'+doneInner()+'</div>';
+}
 /* --- Clientes --- */
 function vClients(){
   var h='<div class="ph"><div><h1>Clientes</h1><p>'+DB.clients.length+' registrado'+(DB.clients.length===1?'':'s')+'</p></div><button class="btn pri" data-act="newClient">'+ic('plus')+'Nuevo cliente</button></div>';
@@ -916,7 +950,9 @@ var acts={
   resumeDraft:function(){var w=loadWorking();if(w)openEditor(w),S.dirty=true},
   dropWorking:function(){clearWorking();render()},
   openQuote:function(el){var q=DB.quotes.filter(function(x){return x.id===el.dataset.id})[0];if(!q)return;S.draft=clone(q);S.dirty=false;S.waOpen=false;S.waText=null;go('doc')},
-  toList:function(){S.draft=null;go('quotes')},
+  toList:function(){var d=S.draft&&S.draft.status==='pagado';S.draft=null;go(d?'done':'quotes')},
+  markPaid:async function(){var q=S.draft,ok=await ask('¿Confirmás que cobraste '+money(calc(q).total)+'? El presupuesto pasa a Trabajos realizados y ya no se puede editar.','Marcar como pagado');if(!ok)return;q.status='pagado';q.paidAt=new Date().toISOString();if(commit(q)){toast('Pagado. Quedó en Trabajos realizados.');render()}},
+  undoPaid:async function(){var ok=await ask('¿Deshacer el pago? El presupuesto vuelve a Pendiente de pago.','Deshacer pago',true);if(!ok)return;var q=S.draft;q.status='aceptado';delete q.paidAt;if(commit(q)){toast('Vuelve a pendiente de pago');render()}},
   backEdit:function(){if(S.draft.status!=='borrador'){acts.modify();return}S.tried=false;go('edit')},
   cancelEdit:function(){if(isSaved(S.draft)){acts.openQuote({dataset:{id:S.draft.id}})}else{S.dirty=false;S.draft=null;clearWorking();go('quotes')}},
   addMat:function(){S.draft.mats.push(blankMat());var r=S.draft.mats[S.draft.mats.length-1];$('#mats').insertAdjacentHTML('beforeend',matRow(r,S.draft.mats.length-1));S.dirty=true;refreshCalc();var i=$('#mr-'+r.id+'-d');if(i)i.focus()},
@@ -950,7 +986,7 @@ var acts={
   waCopy:async function(){var t=$('#wa-text').value;try{await navigator.clipboard.writeText(t);toast('Mensaje copiado')}catch(e){var ta=$('#wa-text');ta.focus();ta.select();toast('Seleccioné el texto, copialo manualmente.')}},
   dup:function(el){
     var src=DB.quotes.filter(function(x){return x.id===el.dataset.id})[0];if(!src)return;
-    var q=clone(src);q.id=uid();q.number=null;q.status='borrador';q.createdAt=todayISO();q.versions=[];delete q.updatedAt;
+    var q=clone(src);q.id=uid();q.number=null;q.status='borrador';q.createdAt=todayISO();q.versions=[];delete q.updatedAt;delete q.paidAt;
     var v=P(DB.settings.validez);q.validUntil=addDays(q.createdAt,(v.err||v.empty)?15:Math.round(v.v));
     q.mats.forEach(function(m){m.id=uid()});q.labor.forEach(function(m){m.id=uid()});
     openEditor(q);toast('Copia lista para editar. Se numera al guardar.');
@@ -984,7 +1020,8 @@ document.addEventListener('click',function(e){
 });
 document.addEventListener('input',function(e){
   var t=e.target;
-  if(t.id==='qsearch'){S.q=t.value;var term=S.q.trim().toLowerCase();var list=DB.quotes.filter(function(q){var st=effStatus(q);if(S.f!=='todos'&&st!==S.f)return false;if(!term)return true;return numNo(q.number||0).indexOf(term.replace(/^n°?\s*/,''))>=0||(q.client.name||'').toLowerCase().indexOf(term)>=0}).sort(function(a,b){return (b.number||0)-(a.number||0)});$('#qlist').innerHTML=qListInner(list);return}
+  if(t.id==='dsearch'){S.dq=t.value;$('#dlist').innerHTML=doneInner();return}
+  if(t.id==='qsearch'){S.q=t.value;var term=S.q.trim().toLowerCase();var list=DB.quotes.filter(function(q){if(q.status==='pagado')return false;var st=effStatus(q);if(S.f!=='todos'&&st!==S.f)return false;if(!term)return true;return numNo(q.number||0).indexOf(term.replace(/^n°?\s*/,''))>=0||(q.client.name||'').toLowerCase().indexOf(term)>=0}).sort(function(a,b){return (b.number||0)-(a.number||0)});$('#qlist').innerHTML=qListInner(list);return}
   if(t.id==='wa-text'){S.waText=t.value;var l=$('#wa-link');if(l)l.href=waHref(waPhone(S.draft.client.tel),t.value);return}
   if(S.view==='edit'&&S.draft){
     if(t.dataset.b){setPath(S.draft,t.dataset.b,t.type==='checkbox'?t.checked:t.value);afterEdit();return}
