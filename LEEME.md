@@ -17,3 +17,7 @@ Archivos de la app: `index.html`, `manifest.webmanifest`, `sw.js` y la carpeta `
 - Tus datos se guardan solo en ese teléfono. Hacé una copia desde **Mi negocio → Descargar copia** de vez en cuando.
 - Los datos que cargaste en la versión de prueba no pasan solos: descargá la copia allá y usá **Restaurar copia** en la app instalada.
 - Si cambiás los archivos más adelante, subí también un `sw.js` con `VERSION` distinta (por ejemplo `ep-v2`) para que el teléfono tome la versión nueva.
+
+## Licencia
+
+Software propietario. Todos los derechos reservados. Ver el archivo `LICENSE`.
