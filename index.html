@@ -183,7 +183,7 @@ main{flex:1;min-width:0;padding-block:18px 110px;padding-left:max(16px,env(safe-
 .ed-bar .t{font-family:var(--f-display);font-weight:700;font-size:20px;text-transform:uppercase}
 .ed-bar .tot{font-family:var(--f-display);font-weight:700;font-size:26px;white-space:nowrap}
 .irow{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px}
-.irow-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.irow-h{display:flex;justify-content:space-between;align-items:center;gap:4px 8px;flex-wrap:wrap}
 .irow-h span{font-family:var(--f-display);font-weight:700;font-size:17px;text-transform:uppercase;color:var(--mute)}
 .ig{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
 .ig .w{grid-column:1/-1}
@@ -232,6 +232,14 @@ main{flex:1;min-width:0;padding-block:18px 110px;padding-left:max(16px,env(safe-
 .paper .cond b{display:block;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--paper-mute)}
 .paper .ft{margin-top:18px;padding-top:8px;border-top:1px solid var(--paper-line);font-size:12px;color:var(--paper-mute)}
 
+.pk{display:flex;justify-content:space-between;gap:12px;align-items:center;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;min-height:56px;cursor:pointer}
+.pk:hover{border-color:var(--link)}
+.pk .num{font-family:var(--f-display);font-weight:700;font-size:20px;white-space:nowrap}
+.pkrow{display:flex;gap:8px;align-items:stretch}
+.dlg.wide{max-width:560px;max-height:88vh;overflow:auto}
+.dlg .list{max-height:48vh;overflow:auto}
+.cat-i{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 0;border-bottom:1px dashed var(--line)}
+.cat-i:last-child{border-bottom:0}
 .bars{display:flex;flex-direction:column;gap:10px}
 .bar{display:grid;grid-template-columns:70px 1fr auto;gap:10px;align-items:center;font-size:14px}
 .bar .tr{background:var(--surface-2);border-radius:4px;height:22px;overflow:hidden}
@@ -314,6 +322,7 @@ var IC={
  down:'<path d="M12 3v12M7 11l5 5 5-5M4 21h16"/>',
  chat:'<path d="M4 4h16v12H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
  check:'<path d="m5 12 5 5 9-10"/>',
+ list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
  done:'<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
  x:'<path d="M6 6l12 12M18 6 6 18"/>',
  search:'<circle cx="11" cy="11" r="6.5"/><path d="m16 16 5 5"/>',
@@ -326,15 +335,16 @@ function ic(n){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor
 
 /* ============ Almacenamiento ============ */
 var LS_KEY='electropresupuesto.v1', LS_DRAFT='electropresupuesto.borrador.v1', storageOK=true;
-function defaults(){return {version:1,counter:0,clients:[],quotes:[],settings:{nombre:'',comercial:'',tel:'',email:'',localidad:'',provincia:'',direccion:'',logo:'',condiciones:'',validez:'15'}}}
+function norm(q){q.visit=q.visit||{on:false,amount:''};q.advPct=q.advPct||'';q.payments=q.payments||[];return q}
+function defaults(){return {version:1,counter:0,clients:[],quotes:[],catalog:[],templates:[],settings:{nombre:'',comercial:'',tel:'',email:'',localidad:'',provincia:'',direccion:'',logo:'',condiciones:'',validez:'15'}}}
 function loadDB(){
   try{localStorage.setItem('ep.test','1');localStorage.removeItem('ep.test')}catch(e){storageOK=false;return defaults()}
-  try{var raw=localStorage.getItem(LS_KEY);if(raw){var d=JSON.parse(raw);var b=defaults();return {version:1,counter:+d.counter||0,clients:Array.isArray(d.clients)?d.clients:[],quotes:Array.isArray(d.quotes)?d.quotes:[],settings:Object.assign(b.settings,d.settings||{})}}}catch(e){}
+  try{var raw=localStorage.getItem(LS_KEY);if(raw){var d=JSON.parse(raw);var b=defaults();return {version:1,counter:+d.counter||0,clients:Array.isArray(d.clients)?d.clients:[],quotes:(Array.isArray(d.quotes)?d.quotes:[]).map(norm),catalog:Array.isArray(d.catalog)?d.catalog:[],templates:Array.isArray(d.templates)?d.templates:[],settings:Object.assign(b.settings,d.settings||{})}}}catch(e){}
   return defaults();
 }
 var DB=loadDB();
 function saveDB(){try{localStorage.setItem(LS_KEY,JSON.stringify(DB));storageOK=true;return true}catch(e){storageOK=false;toast('No se pudo guardar en este navegador. Descargá una copia de seguridad desde "Mi negocio".');return false}}
-function loadWorking(){try{var r=localStorage.getItem(LS_DRAFT);return r?JSON.parse(r):null}catch(e){return null}}
+function loadWorking(){try{var r=localStorage.getItem(LS_DRAFT);return r?norm(JSON.parse(r)):null}catch(e){return null}}
 function saveWorking(){try{if(S.draft&&S.dirty)localStorage.setItem(LS_DRAFT,JSON.stringify(S.draft))}catch(e){}}
 function clearWorking(){try{localStorage.removeItem(LS_DRAFT)}catch(e){}}
 
@@ -350,7 +360,7 @@ function newQuote(){
   return {id:uid(),number:null,status:'borrador',createdAt:t,validUntil:addDays(t,(v.err||v.empty)?15:Math.round(v.v)),
     clientId:'',client:{name:'',tel:'',email:'',addr:''},workAddress:'',serviceType:'',description:'',
     mats:[blankMat()],labor:[blankLab()],extras:{traslado:'',herr:'',otros:''},discount:{type:'porc',value:''},tax:{on:false,name:'',pct:''},
-    cond:{incluidos:'',noIncluidos:'',materiales:'',plazo:'',pago:'',garantia:'',obs:'',generales:s.condiciones||''},versions:[]};
+    cond:{incluidos:'',noIncluidos:'',materiales:'',plazo:'',pago:'',garantia:'',obs:'',generales:s.condiciones||''},versions:[],visit:{on:false,amount:''},advPct:'',payments:[]};
 }
 function calc(q){
   var errs={},r={};
@@ -401,7 +411,12 @@ function calc(q){
     else if(tp.v>100)E('t.pct','El porcentaje no puede superar 100','inv');
     else{r.taxPct=tp.v;r.taxAmt=Math.round(r.base*tp.v/100)}
   }
-  r.total=r.base+r.taxAmt;r.errs=errs;r.items=items;
+  r.visit=0;
+  if(q.visit&&q.visit.on){var vp=P(q.visit.amount);if(vp.err)E('v.amount',vp.err,'inv');else if(vp.empty)E('v.amount','Ingresá el importe de la visita','req');else{var vc=Math.round(vp.v*100);if(vc>r.base+r.taxAmt)E('v.amount','La visita no puede superar el total del trabajo ('+money(r.base+r.taxAmt)+')','inv');else r.visit=vc}}
+  r.total=r.base+r.taxAmt-r.visit;
+  r.advance=0;r.advPct=null;
+  var ap=P(q.advPct);if(ap.err)E('a.pct',ap.err,'inv');else if(!ap.empty){if(ap.v>100)E('a.pct','El anticipo no puede superar 100%','inv');else if(ap.v>0){r.advPct=ap.v;r.advance=Math.round(r.total*ap.v/100)}}
+  r.errs=errs;r.items=items;
   r.hasInvalid=Object.keys(errs).some(function(k){return errs[k].kind==='inv'});
   r.hasReq=Object.keys(errs).some(function(k){return errs[k].kind==='req'});
   return r;
@@ -417,7 +432,9 @@ function linesFrom(c,q){
     L.push({l:'Subtotal con descuento',v:money(c.base),strong:true});
     L.push({l:'Impuesto: '+q.tax.name.trim()+' ('+fmtQty(c.taxPct)+'%)',v:money(c.taxAmt)});
   }
+  if(c.visit>0)L.push({l:'Menos: visita de diagnóstico ya abonada',v:'- '+money(c.visit)});
   L.push({l:'TOTAL',v:money(c.total),total:true});
+  if(c.advance>0){L.push({l:'Anticipo solicitado ('+fmtQty(c.advPct)+'%)',v:money(c.advance)});L.push({l:'Saldo a la finalización',v:money(c.total-c.advance)})}
   return L;
 }
 function effStatus(q){return (q.status==='enviado'&&q.validUntil&&q.validUntil<todayISO())?'vencido':q.status}
@@ -635,12 +652,12 @@ function ask(msg,ok,danger){
   });
 }
 async function go(view,p){
-  if(S.view==='edit'&&view!=='edit'&&view!=='doc'&&S.dirty){var ok=await ask('Tenés cambios sin guardar en este presupuesto. ¿Querés salir y descartarlos?','Descartar cambios',true);if(!ok)return;S.dirty=false;S.draft=null;clearWorking()}
+  if(S.view==='edit'&&view!=='edit'&&view!=='doc'&&view!=='catalog'&&S.dirty){var ok=await ask('Tenés cambios sin guardar en este presupuesto. ¿Querés salir y descartarlos?','Descartar cambios',true);if(!ok)return;S.dirty=false;S.draft=null;clearWorking()}
   if(S.view==='doc'&&view!=='doc'&&view!=='edit'&&S.dirty){var ok2=await ask('Este presupuesto no está guardado. ¿Querés salir y descartarlo?','Descartar',true);if(!ok2)return;S.dirty=false;S.draft=null;clearWorking()}
-  Object.assign(S,p||{});S.view=view;S.exportErr=null;
+  Object.assign(S,p||{});S.view=view;if(!(p&&'exportErr' in p))S.exportErr=null;if(view!=='catalog'&&view!=='edit')S.fromEdit=false;
   render();window.scrollTo(0,0);
 }
-var NAV=[['home','Inicio','Inicio','home'],['quotes','Presupuestos','Presupuestos','doc'],['done','Realizados','Trabajos realizados','done'],['clients','Clientes','Clientes','users'],['settings','Mi negocio','Mi negocio','gear'],['stats','Estadísticas','Estadísticas','chart',1]];
+var NAV=[['home','Inicio','Inicio','home'],['quotes','Presupuestos','Presupuestos','doc'],['done','Realizados','Trabajos realizados','done'],['clients','Clientes','Clientes','users'],['settings','Mi negocio','Mi negocio','gear'],['catalog','Catálogo','Catálogo','list',1],['stats','Estadísticas','Estadísticas','chart',1]];
 function renderNav(){
   var cur=S.view==='edit'||S.view==='doc'?((S.draft&&S.draft.status==='pagado')?'done':'quotes'):(S.view==='client-edit'?'clients':S.view);
   $('#nav').innerHTML='<div class="brand brandrow"><span class="brand-mark">'+ic('bolt')+'</span><span><b>ElectroPresupuesto</b><small>Presupuestos eléctricos</small></span></div>'+
@@ -649,7 +666,7 @@ function renderNav(){
 function render(){
   renderNav();
   var h='';
-  switch(S.view){case 'home':h=vHome();break;case 'quotes':h=vQuotes();break;case 'edit':h=vEdit();break;case 'doc':h=vDoc();break;case 'clients':h=vClients();break;case 'client-edit':h=vClientEdit();break;case 'settings':h=vSettings();break;case 'stats':h=vStats();break;case 'done':h=vDone();break}
+  switch(S.view){case 'home':h=vHome();break;case 'quotes':h=vQuotes();break;case 'edit':h=vEdit();break;case 'doc':h=vDoc();break;case 'clients':h=vClients();break;case 'client-edit':h=vClientEdit();break;case 'settings':h=vSettings();break;case 'stats':h=vStats();break;case 'done':h=vDone();break;case 'catalog':h=vCatalog();break}
   main.innerHTML='<div class="page">'+(storageOK?'':'<div class="alert warn">'+ic('warn')+'<div><b>Tus datos no se están guardando.</b><br>Este navegador bloquea el almacenamiento. Lo que cargues se pierde al cerrar. Descargá una copia de seguridad desde "Mi negocio".</div></div>')+h+'</div>';
   if(S.view==='edit')refreshCalc();
 }
@@ -685,9 +702,10 @@ function vHome(){
     var rec=DB.quotes.slice().sort(function(a,b){return (b.updatedAt||b.createdAt).localeCompare(a.updatedAt||a.createdAt)}).slice(0,5);
     h+='<section><div class="sec-h"><h2>Últimos presupuestos</h2><span class="sp"></span><button class="btn sm ghost" data-go="quotes">Ver todos</button></div><div class="list">'+rec.map(qItem).join('')+'</div></section>';
   }
+  h+=followSection();
   h+='<section><div class="sec-h"><h2>Accesos</h2></div><div class="actions">'+
    act('newQuote','plus','Crear presupuesto','Materiales, mano de obra y totales',true)+act('go:quotes','doc','Presupuestos guardados','Buscá, filtrá y descargá el PDF')+
-   act('go:done','done','Trabajos realizados','Presupuestos ya cobrados')+act('go:clients','users','Clientes','Registrá y administrá tus clientes')+act('go:settings','gear','Mi negocio','Datos, logo y condiciones')+act('go:stats','chart','Estadísticas','Cómo vienen tus presupuestos')+'</div></section>';
+   act('go:done','done','Trabajos realizados','Presupuestos ya cobrados')+act('go:catalog','list','Catálogo','Tus materiales y servicios con precio')+act('go:clients','users','Clientes','Registrá y administrá tus clientes')+act('go:settings','gear','Mi negocio','Datos, logo y condiciones')+act('go:stats','chart','Estadísticas','Cómo vienen tus presupuestos')+'</div></section>';
   return h;
 }
 function act(a,i,t,d,main){
@@ -720,6 +738,7 @@ function vEdit(){
   var q=S.draft;if(!q){S.view='home';return vHome()}
   var numTxt=numNo(q.number||(DB.counter+1));
   var h='<div class="ed-bar"><div><div class="t">Presupuesto N° '+numTxt+'</div><div class="hint">'+(q.number?'Guardado':'Se numera al guardar')+'</div></div><div class="tot num" id="hdtotal">$ 0,00</div></div>';
+  h+='<div class="card flat"><div class="row-b"><button class="btn sm" data-act="useTpl">'+ic('copy')+'Usar plantilla</button><button class="btn sm" data-act="saveTplOpen">'+ic('save')+'Guardar como plantilla</button><button class="btn sm" data-act="toCatalog">'+ic('list')+'Mi catálogo</button></div></div>';
   h+='<section class="card" id="sec-gen"><div class="sec-h"><span class="ico">'+ic('doc')+'</span><h2>Datos generales</h2></div><div class="grid c2">'+
     fld('Fecha de creación','f-created','<input id="f-created" class="inp" type="date" data-b="createdAt" value="'+esc(q.createdAt)+'">')+
     fld('Fecha de vencimiento','f-due','<input id="f-due" class="inp" type="date" data-b="validUntil" value="'+esc(q.validUntil)+'">','due')+
@@ -727,8 +746,8 @@ function vEdit(){
     '<div class="span2">'+fld('Dirección donde se realizará el trabajo','f-waddr','<input id="f-waddr" class="inp" data-b="workAddress" value="'+esc(q.workAddress)+'" autocomplete="street-address" placeholder="Calle, número, localidad">','waddr')+'</div>'+
     fld('Tipo de servicio','f-svc','<select id="f-svc" class="sel" data-b="serviceType"><option value="">Elegí una opción</option>'+SERVICES.map(function(s){return '<option'+(q.serviceType===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>','svc')+
     '<div class="span2">'+fld('Descripción general','f-desc','<textarea id="f-desc" class="txt" data-b="description" placeholder="Qué trabajo se va a realizar">'+esc(q.description)+'</textarea>')+'</div></div></section>';
-  h+='<section class="card"><div class="sec-h"><span class="ico">'+ic('bolt')+'</span><h2>Materiales</h2><span class="sp"></span><span class="num" style="font-weight:600" id="matsub"></span></div><p class="hint" style="margin-bottom:10px">Ingresá tus precios. Usá coma para decimales (por ejemplo 2,5).</p><div class="list" id="mats">'+q.mats.map(function(r,i){return matRow(r,i)}).join('')+'</div><div class="row-b" style="margin-top:12px"><button class="btn" data-act="addMat">'+ic('plus')+'Agregar material</button></div></section>';
-  h+='<section class="card"><div class="sec-h"><span class="ico">'+ic('gear')+'</span><h2>Mano de obra</h2><span class="sp"></span><span class="num" style="font-weight:600" id="labsub"></span></div><p class="hint" style="margin-bottom:10px">Si dejás la cantidad vacía se cuenta 1.</p><div class="list" id="labs">'+q.labor.map(function(r,i){return labRow(r,i)}).join('')+'</div><div class="row-b" style="margin-top:12px"><button class="btn" data-act="addLab">'+ic('plus')+'Agregar concepto</button></div></section>';
+  h+='<section class="card"><div class="sec-h"><span class="ico">'+ic('bolt')+'</span><h2>Materiales</h2><span class="sp"></span><span class="num" style="font-weight:600" id="matsub"></span></div><p class="hint" style="margin-bottom:10px">Ingresá tus precios. Usá coma para decimales (por ejemplo 2,5).</p><div class="list" id="mats">'+q.mats.map(function(r,i){return matRow(r,i)}).join('')+'</div><div class="row-b" style="margin-top:12px"><button class="btn" data-act="addMat">'+ic('plus')+'Agregar material</button><button class="btn" data-act="pickItem" data-type="mat">'+ic('list')+'Del catálogo</button></div></section>';
+  h+='<section class="card"><div class="sec-h"><span class="ico">'+ic('gear')+'</span><h2>Mano de obra</h2><span class="sp"></span><span class="num" style="font-weight:600" id="labsub"></span></div><p class="hint" style="margin-bottom:10px">Si dejás la cantidad vacía se cuenta 1.</p><div class="list" id="labs">'+q.labor.map(function(r,i){return labRow(r,i)}).join('')+'</div><div class="row-b" style="margin-top:12px"><button class="btn" data-act="addLab">'+ic('plus')+'Agregar concepto</button><button class="btn" data-act="pickItem" data-type="lab">'+ic('list')+'Del catálogo</button></div></section>';
   h+='<section class="card"><div class="sec-h"><span class="ico">'+ic('chart')+'</span><h2>Otros gastos y descuentos</h2></div><div class="grid c3">'+
     [['traslado','Traslado'],['herr','Alquiler de herramientas'],['otros','Otros gastos']].map(function(x){return fld(x[1],'f-x-'+x[0],'<div class="adorn pre"><i>$</i><input id="f-x-'+x[0]+'" class="inp" inputmode="decimal" data-b="extras.'+x[0]+'" data-k="x.'+x[0]+'" value="'+esc(q.extras[x[0]])+'" placeholder="0,00"></div>','x.'+x[0])}).join('')+'</div>'+
     '<div class="grid c3" style="margin-top:12px">'+
@@ -737,7 +756,9 @@ function vEdit(){
     '<div style="margin-top:12px"><label class="chk"><input type="checkbox" id="f-tax" data-b="tax.on"'+(q.tax.on?' checked':'')+'><span>Agregar un impuesto (se muestra por separado)</span></label>'+
     '<div class="grid c2" id="taxf" style="margin-top:8px"'+(q.tax.on?'':' hidden')+'>'+fld('Nombre del impuesto','f-taxn','<input id="f-taxn" class="inp" data-b="tax.name" data-k="t.name" value="'+esc(q.tax.name)+'" placeholder="Según tu situación fiscal">','t.name')+
     fld('Porcentaje','f-taxp','<div class="adorn"><input id="f-taxp" class="inp" inputmode="decimal" data-b="tax.pct" data-k="t.pct" value="'+esc(q.tax.pct)+'" placeholder="0"><i>%</i></div>','t.pct')+'</div>'+
-    '<p class="hint" style="margin-top:6px">No se aplica ningún impuesto por defecto. Se calcula sobre el subtotal ya descontado.</p></div></section>';
+    '<p class="hint" style="margin-top:6px">No se aplica ningún impuesto por defecto. Se calcula sobre el subtotal ya descontado.</p></div>'+
+    '<div style="margin-top:12px"><label class="chk"><input type="checkbox" id="f-visit" data-b="visit.on"'+(q.visit.on?' checked':'')+'><span>Ya cobré una visita de diagnóstico y se descuenta del total</span></label><div id="visitf" style="margin-top:8px"'+(q.visit.on?'':' hidden')+'>'+fld('Importe de la visita ya abonada','f-vis','<div class="adorn pre"><i>$</i><input id="f-vis" class="inp" inputmode="decimal" data-b="visit.amount" data-k="v.amount" value="'+esc(q.visit.amount)+'" placeholder="0,00"></div>','v.amount')+'</div></div>'+
+    '<div class="grid c3" style="margin-top:12px">'+fld('Anticipo solicitado (opcional)','f-adv','<div class="adorn"><input id="f-adv" class="inp" inputmode="decimal" data-b="advPct" data-k="a.pct" value="'+esc(q.advPct)+'" placeholder="Ej.: 50"><i>%</i></div>','a.pct')+'</div></section>';
   h+='<section class="card"><div class="sec-h"><span class="ico">'+ic('doc')+'</span><h2>Condiciones del trabajo</h2></div><div class="grid c2">'+
     fld('Trabajos incluidos','f-c1','<textarea id="f-c1" class="txt" data-b="cond.incluidos">'+esc(q.cond.incluidos)+'</textarea>')+
     fld('Trabajos no incluidos','f-c2','<textarea id="f-c2" class="txt" data-b="cond.noIncluidos">'+esc(q.cond.noIncluidos)+'</textarea>')+
@@ -764,7 +785,7 @@ function clientSec(q){
 function numField(id,label,name,val,key,pre,unit){return ''}
 function matRow(r,i){
   var k='m.'+r.id;
-  return '<div class="irow" data-rowid="'+r.id+'"><div class="irow-h"><span>Material '+(i+1)+'</span><button class="btn sm ghost danger" data-act="delMat" data-id="'+r.id+'" aria-label="Eliminar material '+(i+1)+'">'+ic('trash')+'Quitar</button></div><div class="ig m">'+
+  return '<div class="irow" data-rowid="'+r.id+'"><div class="irow-h"><span>Material '+(i+1)+'</span><span style="display:flex;gap:4px"><button class="btn sm ghost" data-act="toCat" data-type="mat" data-id="'+r.id+'">'+ic('list')+'Al catálogo</button><button class="btn sm ghost danger" data-act="delMat" data-id="'+r.id+'" aria-label="Eliminar material '+(i+1)+'">'+ic('trash')+'Quitar</button></span></div><div class="ig m">'+
   '<div class="fld w"><label for="mr-'+r.id+'-d">Descripción</label><input id="mr-'+r.id+'-d" class="inp" data-row="mats" data-id="'+r.id+'" data-f="desc" data-k="'+k+'.desc" value="'+esc(r.desc)+'" placeholder="Ej.: Cable unipolar 2,5 mm²"><span class="err" data-e="'+k+'.desc" hidden></span></div>'+
   '<div class="fld q"><label for="mr-'+r.id+'-q">Cantidad</label><input id="mr-'+r.id+'-q" class="inp" inputmode="decimal" data-row="mats" data-id="'+r.id+'" data-f="qty" data-k="'+k+'.qty" value="'+esc(r.qty)+'" placeholder="0"><span class="err" data-e="'+k+'.qty" hidden></span></div>'+
   '<div class="fld u"><label for="mr-'+r.id+'-u">Unidad</label><select id="mr-'+r.id+'-u" class="sel" data-row="mats" data-id="'+r.id+'" data-f="unit">'+UNITS.map(function(u){return '<option value="'+u+'"'+(r.unit===u?' selected':'')+'>'+UNIT_NAMES[u]+'</option>'}).join('')+'</select></div>'+
@@ -773,7 +794,7 @@ function matRow(r,i){
 }
 function labRow(r,i){
   var k='l.'+r.id;
-  return '<div class="irow" data-rowid="'+r.id+'"><div class="irow-h"><span>Concepto '+(i+1)+'</span><button class="btn sm ghost danger" data-act="delLab" data-id="'+r.id+'" aria-label="Eliminar concepto '+(i+1)+'">'+ic('trash')+'Quitar</button></div><div class="ig l">'+
+  return '<div class="irow" data-rowid="'+r.id+'"><div class="irow-h"><span>Concepto '+(i+1)+'</span><span style="display:flex;gap:4px"><button class="btn sm ghost" data-act="toCat" data-type="lab" data-id="'+r.id+'">'+ic('list')+'Al catálogo</button><button class="btn sm ghost danger" data-act="delLab" data-id="'+r.id+'" aria-label="Eliminar concepto '+(i+1)+'">'+ic('trash')+'Quitar</button></span></div><div class="ig l">'+
   '<div class="fld w"><label for="lr-'+r.id+'-d">Descripción del trabajo</label><input id="lr-'+r.id+'-d" class="inp" data-row="labor" data-id="'+r.id+'" data-f="desc" data-k="'+k+'.desc" value="'+esc(r.desc)+'" placeholder="Ej.: Colocación de luminarias"><span class="err" data-e="'+k+'.desc" hidden></span></div>'+
   '<div class="fld q"><label for="lr-'+r.id+'-q">Cantidad</label><input id="lr-'+r.id+'-q" class="inp" inputmode="decimal" data-row="labor" data-id="'+r.id+'" data-f="qty" data-k="'+k+'.qty" value="'+esc(r.qty)+'" placeholder="1"><span class="err" data-e="'+k+'.qty" hidden></span></div>'+
   '<div class="fld p"><label for="lr-'+r.id+'-p">Precio unitario</label><div class="adorn pre"><i>$</i><input id="lr-'+r.id+'-p" class="inp" inputmode="decimal" data-row="labor" data-id="'+r.id+'" data-f="price" data-k="'+k+'.price" value="'+esc(r.price)+'" placeholder="0,00"></div><span class="err" data-e="'+k+'.price" hidden></span></div>'+
@@ -795,6 +816,7 @@ function refreshCalc(){
   var u=$('#dunit');if(u)u.textContent=q.discount.type==='porc'?'%':'$';
   var da=$('#dadorn');if(da){da.className='adorn'+(q.discount.type==='monto'?' pre':'');}
   var tf=$('#taxf');if(tf)tf.hidden=!q.tax.on;
+  var vf=$('#visitf');if(vf)vf.hidden=!(q.visit&&q.visit.on);
 }
 function setPath(o,path,v){var p=path.split('.');for(var i=0;i<p.length-1;i++)o=o[p[i]];o[p[p.length-1]]=v}
 function afterEdit(){S.dirty=true;clearTimeout(afterEdit.t);afterEdit.t=setTimeout(saveWorking,600);refreshCalc()}
@@ -822,7 +844,7 @@ function vDoc(){
   h+='<div class="row-b">'+
     (q.status==='pagado'?'':(q.status==='borrador')?'<button class="btn" data-act="backEdit">'+ic('edit')+'Editar</button>':'<button class="btn" data-act="modify">'+ic('edit')+'Modificar</button>')+
     ((!saved||S.dirty)?'<button class="btn" data-act="saveDoc">'+ic('save')+'Guardar</button>':'')+
-    '<button class="btn pri" data-act="pdf">'+ic('down')+'Descargar PDF</button><button class="btn" data-act="wa">'+ic('chat')+'WhatsApp</button>'+
+    '<button class="btn pri" data-act="pdf">'+ic('down')+'Descargar PDF</button><button class="btn" data-act="wa">'+ic('chat')+'WhatsApp</button>'+((saved&&!S.dirty&&q.status==='enviado')?'<button class="btn" data-act="followUpDoc">'+ic('chat')+'Seguimiento</button>':'')+
     (saved?'<button class="btn" data-act="dup" data-id="'+q.id+'">'+ic('copy')+'Duplicar</button><button class="btn danger" data-act="delQuote" data-id="'+q.id+'">'+ic('trash')+'Eliminar</button>':'')+'</div>';
   if(S.exportErr)h+='<div class="alert bad">'+ic('warn')+'<div><b>Falta completar para exportar:</b><ul>'+S.exportErr.map(function(e){return '<li>'+esc(e.t)+(e.to?' <button class="btn sm" data-go="'+e.to+'">Ir</button>':'')+'</li>'}).join('')+'</ul></div></div>';
   if(S.waOpen){
@@ -839,6 +861,7 @@ function vDoc(){
     if(opts.length)h+='<div class="card"><div class="lbl" style="margin-bottom:8px">Cambiar estado</div><div class="row-b">'+opts.map(function(s){return '<button class="btn sm" data-act="setStatus" data-s="'+s+'">Marcar como '+({enviado:'enviado',aceptado:'aceptado',rechazado:'rechazado'})[s]+'</button>'}).join('')+'</div>'+
      (st==='vencido'?'<p class="hint" style="margin-top:8px">Este presupuesto enviado pasó su fecha de vencimiento. Si el cliente igualmente lo acepta, marcalo como aceptado y queda pendiente de pago.</p>':'')+'<p class="hint" style="margin-top:8px">El estado solo cambia cuando lo indicás. Descargar o compartir no lo modifica.</p></div>';
   }
+  if(saved&&!S.dirty&&(q.status==='aceptado'||q.status==='pagado'))h+=payCard(q);
   if(q.versions&&q.versions.length)h+='<div class="card"><div class="sec-h"><h2>Versiones anteriores</h2></div>'+q.versions.map(function(v,i){var c=calc(v.q);return '<details class="ver"><summary>Versión '+(i+1)+' · '+STATUS[v.status]+' el '+fmtDT(v.at)+' · '+money(c.total)+'</summary><p class="hint" style="margin-bottom:8px">Copia de lo que se había enviado antes de la modificación.</p><button class="btn sm" data-act="pdfVersion" data-i="'+i+'">'+ic('down')+'Descargar PDF de esta versión</button></details>'}).join('')+'</div>';
   h+='<div class="tw" style="padding:0">'+paper(m)+'</div>';
   return h;
@@ -852,7 +875,7 @@ function waHref(p,msg){return 'https://wa.me/'+(p||'')+'?text='+encodeURICompone
 
 function payBar(q){
   var c=calc(q);
-  if(q.status==='aceptado')return '<div class="paybar pend"><div><h2>Pendiente de pago</h2><p>El cliente aceptó este presupuesto. Cuando cobres, marcalo como pagado. Total: <b class="num">'+money(c.total)+'</b></p></div><button class="btn dark" data-act="markPaid">'+ic('check')+'Marcar como pagado</button></div>';
+  if(q.status==='aceptado')return '<div class="paybar pend"><div><h2>Pendiente de pago</h2><p>El cliente aceptó este presupuesto. Cuando cobres, marcalo como pagado. Total: <b class="num">'+money(c.total)+'</b>'+(paidSoFar(q)?' · Cobrado: <b class="num">'+money(paidSoFar(q))+'</b> · Falta: <b class="num">'+money(Math.max(0,c.total-paidSoFar(q)))+'</b>':'')+'</p></div><button class="btn dark" data-act="markPaid">'+ic('check')+'Marcar como pagado</button></div>';
   return '<div class="paybar paid"><div><h2>Pagado</h2><p>Cobrado el '+fmtDT(q.paidAt||q.updatedAt||q.createdAt)+' por <b class="num">'+money(c.total)+'</b>. Trabajo realizado.</p></div><div class="row-b"><button class="btn sm" data-go="done">Ver trabajos realizados</button><button class="btn sm ghost danger" data-act="undoPaid">Deshacer pago</button></div></div>';
 }
 function doneList(){
@@ -871,6 +894,59 @@ function vDone(){
   h+='<div class="stats s3"><div class="stat"><span class="k">Trabajos realizados</span><span class="v num">'+all.length+'</span></div><div class="stat hl"><span class="k">Total cobrado</span><span class="v money num">'+money(tot)+'</span></div><div class="stat"><span class="k">Cobrado este mes</span><span class="v money num">'+money(mon)+'</span></div></div>';
   h+='<div class="fld"><label for="dsearch" class="lbl">Buscar por número o cliente</label><input id="dsearch" class="inp" type="search" value="'+esc(S.dq)+'" placeholder="Ej.: 0003 o nombre del cliente"></div>';
   return h+'<div class="list" id="dlist">'+doneInner()+'</div>';
+}
+function paidSoFar(q){return (q.payments||[]).reduce(function(a,p){return a+(p.c||0)},0)}
+function daysSince(iso){var t=new Date(iso).getTime();return isFinite(t)?Math.floor((Date.now()-t)/864e5):0}
+function payCard(q){
+  var c=calc(q),pd=paidSoFar(q),pays=q.payments||[];
+  if(!pays.length&&q.status==='pagado')return '';
+  return '<div class="card"><div class="sec-h"><span class="ico">'+ic('chart')+'</span><h2>Pagos recibidos</h2></div>'+
+   (pays.length?pays.map(function(p){return '<div class="sl"><span>'+fmtDT(p.at)+(p.note?' · '+esc(p.note):'')+'</span><span class="num">'+money(p.c)+'</span></div>'}).join(''):'<p class="hint">Todavía no registraste pagos. Si el cliente deja una seña, anotala acá.</p>')+
+   '<div class="sl strong"><span>Cobrado</span><span class="num">'+money(pd)+'</span></div><div class="sl strong"><span>Falta cobrar</span><span class="num">'+money(Math.max(0,c.total-pd))+'</span></div>'+
+   (q.status==='aceptado'?'<div class="row-b" style="margin-top:12px"><button class="btn" data-act="addPay">'+ic('plus')+'Registrar pago o anticipo</button></div>':'')+
+   (c.advance>0?'<p class="hint" style="margin-top:8px">Anticipo pedido en el presupuesto: '+money(c.advance)+'.</p>':'')+'</div>';
+}
+function followSection(){
+  var L=DB.quotes.filter(function(q){
+    if(q.status!=='enviado'||effStatus(q)!=='enviado')return false;
+    if(daysSince(q.sentAt||q.updatedAt||q.createdAt)<3)return false;
+    if(q.followedAt&&daysSince(q.followedAt)<3)return false;return true;
+  }).sort(function(a,b){return (a.sentAt||a.updatedAt||a.createdAt).localeCompare(b.sentAt||b.updatedAt||b.createdAt)}).slice(0,5);
+  if(!L.length)return '';
+  return '<section class="card"><div class="sec-h"><span class="ico">'+ic('chat')+'</span><h2>Para seguir</h2></div><p class="hint" style="margin-bottom:10px">Presupuestos enviados sin respuesta hace 3 días o más.</p><div class="list">'+L.map(function(q){
+    return '<div class="irow"><div><b>N° '+numNo(q.number||0)+'</b> · '+esc(q.client.name||'Sin cliente')+' · <span class="num">'+money(calc(q).total)+'</span></div><div class="hint">Enviado hace '+daysSince(q.sentAt||q.updatedAt||q.createdAt)+' días · vence el '+fmtDate(q.validUntil)+'</div><div><button class="btn sm pri" data-act="followUp" data-id="'+q.id+'">'+ic('chat')+'Mensaje de seguimiento</button></div></div>'}).join('')+'</div></section>';
+}
+function followMsg(q,m){
+  var nm=(q.client.name||'').trim();
+  return 'Hola'+(nm?' '+nm:'')+', ¿cómo estás? Te escribo por el presupuesto N° '+m.number+' (total '+m.total+') que te envié'+((q.sentAt)?' el '+fmtDT(q.sentAt):'')+'. ¿Pudiste revisarlo? Si tenés dudas o querés ajustar algo, avisame.\nEstá vigente hasta el '+m.due+'.\nSaludos, '+(m.biz.name||'');
+}
+function doFollow(){
+  var q=S.draft,errs=validateExport(q),p={};
+  if(errs.length){p.exportErr=errs;S.waOpen=false}else{var m=buildModel(q);S.waOpen=true;S.waText=followMsg(q,m);S.waFollow=true;p.exportErr=null}
+  go('doc',p);
+}
+function pkList(type,term){
+  term=(term||'').trim().toLowerCase();
+  var items=DB.catalog.filter(function(i){return i.type===type&&(!term||i.desc.toLowerCase().indexOf(term)>=0)});
+  return items.length?items.map(function(i){return '<button class="pk" data-act="useItem" data-id="'+i.id+'"><span style="min-width:0;overflow-wrap:anywhere"><b>'+esc(i.desc)+'</b>'+(type==='mat'?'<br><span class="hint">'+esc(i.unit||'u')+'</span>':'')+'</span><span class="num">'+money(Math.round(P(i.price).v*100))+'</span></button>'}).join(''):'<p class="hint">Sin resultados.</p>';
+}
+function openModal(html){closeModal();var o=document.createElement('div');o.className='ov mdl';o.innerHTML='<div class="dlg wide" role="dialog" aria-modal="true">'+html+'</div>';o.addEventListener('mousedown',function(e){if(e.target===o)closeModal()});document.body.appendChild(o);var f=o.querySelector('input,button');if(f)f.focus();return o}
+function closeModal(){$$('.mdl').forEach(function(x){x.remove()})}
+function vCatalog(){
+  var e=S.catEdit?DB.catalog.filter(function(x){return x.id===S.catEdit})[0]:null;e=e||{type:'mat',desc:'',unit:'u',price:''};
+  var h='<div class="ph"><div><h1>Catálogo</h1><p>Tus materiales y servicios con precio, para elegirlos al armar un presupuesto.</p></div>'+(S.fromEdit&&S.draft?'<button class="btn pri" data-act="backToQuote">'+ic('back')+'Volver al presupuesto</button>':'')+'</div>';
+  h+='<form class="card" id="catform" novalidate><div class="sec-h"><span class="ico">'+ic('plus')+'</span><h2>'+(e.id?'Editar ítem':'Agregar al catálogo')+'</h2></div><div class="grid c2">'+
+   fld('Tipo','ct-type','<select id="ct-type" class="sel"><option value="mat"'+(e.type==='mat'?' selected':'')+'>Material</option><option value="lab"'+(e.type==='lab'?' selected':'')+'>Servicio o mano de obra</option></select>')+
+   fld('Unidad (solo materiales)','ct-unit','<select id="ct-unit" class="sel">'+UNITS.map(function(u){return '<option value="'+u+'"'+((e.unit||'u')===u?' selected':'')+'>'+UNIT_NAMES[u]+'</option>'}).join('')+'</select>')+
+   '<div class="span2">'+fld('Descripción','ct-desc','<input id="ct-desc" class="inp" value="'+esc(e.desc)+'" placeholder="Ej.: Térmica bipolar 32A">')+'</div>'+
+   fld('Precio unitario','ct-price','<div class="adorn pre"><i>$</i><input id="ct-price" class="inp" inputmode="decimal" value="'+esc(e.price)+'" placeholder="0,00"></div>')+'</div>'+
+   '<div class="err" id="ct-err" hidden style="margin-top:10px"></div><div class="row-b" style="margin-top:12px"><button class="btn pri" type="submit">'+ic('save')+'Guardar</button>'+(e.id?'<button class="btn" type="button" data-act="cancelCat">Cancelar</button>':'')+'</div></form>';
+  [['mat','Materiales'],['lab','Servicios y mano de obra']].forEach(function(t){
+    var items=DB.catalog.filter(function(i){return i.type===t[0]}).sort(function(a,b){return a.desc.localeCompare(b.desc,'es')});
+    h+='<section class="card"><div class="sec-h"><h2>'+t[1]+'</h2><span class="sp"></span><span class="hint">'+items.length+'</span></div>'+
+     (items.length?items.map(function(i){return '<div class="cat-i"><div style="min-width:0;overflow-wrap:anywhere"><b>'+esc(i.desc)+'</b><div class="hint">'+(t[0]==='mat'?esc(i.unit||'u')+' · ':'')+'<span class="num">'+money(Math.round(P(i.price).v*100))+'</span></div></div><div class="row-b"><button class="btn sm" data-act="editCat" data-id="'+i.id+'">'+ic('edit')+'Editar</button><button class="btn sm danger" data-act="delCat" data-id="'+i.id+'" aria-label="Eliminar">'+ic('trash')+'</button></div></div>'}).join(''):'<p class="hint">Todavía no cargaste ninguno. Agregalos arriba, o desde un presupuesto con "Al catálogo".</p>')+'</section>';
+  });
+  return h;
 }
 /* --- Clientes --- */
 function vClients(){
@@ -949,10 +1025,83 @@ var acts={
   newQuote:function(){openEditor(newQuote())},
   resumeDraft:function(){var w=loadWorking();if(w)openEditor(w),S.dirty=true},
   dropWorking:function(){clearWorking();render()},
-  openQuote:function(el){var q=DB.quotes.filter(function(x){return x.id===el.dataset.id})[0];if(!q)return;S.draft=clone(q);S.dirty=false;S.waOpen=false;S.waText=null;go('doc')},
+  openQuote:function(el){var q=DB.quotes.filter(function(x){return x.id===el.dataset.id})[0];if(!q)return;S.draft=norm(clone(q));S.dirty=false;S.waOpen=false;S.waText=null;go('doc')},
+  closeModal:function(){closeModal()},
+  toCatalog:function(){S.fromEdit=S.view==='edit'&&!!S.draft;go('catalog',{catEdit:null})},
+  backToQuote:function(){go('edit',{fromEdit:false})},
+  editCat:function(el){S.catEdit=el.dataset.id;render();window.scrollTo(0,0)},
+  cancelCat:function(){S.catEdit=null;render()},
+  delCat:async function(el){var ok=await ask('¿Eliminar este ítem del catálogo? Los presupuestos ya hechos no cambian.','Eliminar',true);if(!ok)return;DB.catalog=DB.catalog.filter(function(i){return i.id!==el.dataset.id});saveDB();S.catEdit=null;render()},
+  pickItem:function(el){
+    var type=el.dataset.type,has=DB.catalog.some(function(i){return i.type===type});
+    openModal('<h3 style="font-size:26px">'+(type==='mat'?'Elegir material':'Elegir servicio')+'</h3>'+(has?'<input class="inp" id="pk-q" type="search" placeholder="Buscar" data-pkq="'+type+'"><div class="list" id="pk-list">'+pkList(type,'')+'</div>':'<p class="hint">Todavía no cargaste ítems de este tipo. Cargalos en tu catálogo y quedan disponibles para todos tus presupuestos. Lo que escribiste en este presupuesto se conserva.</p><button class="btn pri" data-act="toCatalog">Ir al catálogo</button>')+'<div class="dlg-b"><button class="btn" data-act="closeModal">Cerrar</button></div>');
+  },
+  useItem:function(el){
+    var it=DB.catalog.filter(function(i){return i.id===el.dataset.id})[0];if(!it)return;var q=S.draft;
+    var rows=it.type==='mat'?q.mats:q.labor,key=it.type==='mat'?'mats':'labor';
+    if(rows.length===1&&!rows[0].desc.trim()&&!String(rows[0].qty).trim()&&!String(rows[0].price).trim())rows.length=0;
+    var r=it.type==='mat'?{id:uid(),desc:it.desc,qty:'',unit:it.unit||'u',price:it.price}:{id:uid(),desc:it.desc,qty:'',price:it.price};
+    rows.push(r);
+    var box=$(it.type==='mat'?'#mats':'#labs');box.innerHTML=rows.map(it.type==='mat'?matRow:labRow).join('');
+    closeModal();afterEdit();var pre=it.type==='mat'?'mr-':'lr-',inp=$('#'+pre+r.id+'-q');if(inp){inp.scrollIntoView({block:'center'});inp.focus()}
+  },
+  toCat:function(el){
+    var type=el.dataset.type,q=S.draft,row=(type==='mat'?q.mats:q.labor).filter(function(x){return x.id===el.dataset.id})[0];if(!row)return;
+    var pr=P(row.price);
+    if(!row.desc.trim()){toast('Escribí la descripción antes de guardarlo.');return}
+    if(pr.err||pr.empty){toast('Ingresá un precio válido antes de guardarlo.');return}
+    var price=String(pr.v).replace('.',','),ex=DB.catalog.filter(function(i){return i.type===type&&i.desc.toLowerCase()===row.desc.trim().toLowerCase()})[0];
+    if(ex){ex.price=price;if(type==='mat')ex.unit=row.unit}else DB.catalog.push({id:uid(),type:type,desc:row.desc.trim(),unit:type==='mat'?row.unit:'',price:price});
+    saveDB();toast(ex?'Precio actualizado en el catálogo.':'Guardado en el catálogo.');
+  },
+  saveTplOpen:function(){
+    var q=S.draft,n=q.mats.concat(q.labor).filter(function(r){return r.desc.trim()}).length;
+    if(!n){toast('Cargá al menos un material o un concepto para guardar una plantilla.');return}
+    openModal('<h3 style="font-size:26px">Guardar como plantilla</h3><p class="hint">Se guardan los materiales, la mano de obra, los gastos y las condiciones. No se guardan el cliente, la dirección ni las fechas.</p>'+fld('Nombre de la plantilla','tpl-name','<input id="tpl-name" class="inp" placeholder="Ej.: Cambio de tablero">')+'<span class="err" id="tpl-err" hidden></span><div class="dlg-b"><button class="btn" data-act="closeModal">Cancelar</button><button class="btn pri" data-act="saveTpl">Guardar plantilla</button></div>');
+  },
+  saveTpl:function(){
+    var nm=$('#tpl-name').value.trim(),er=$('#tpl-err');if(!nm){er.textContent='Escribí un nombre para la plantilla.';er.hidden=false;return}
+    var q=S.draft,t={id:uid(),name:nm,serviceType:q.serviceType,description:q.description,
+      mats:clone(q.mats.filter(function(r){return r.desc.trim()})),labor:clone(q.labor.filter(function(r){return r.desc.trim()})),
+      extras:clone(q.extras),discount:clone(q.discount),tax:clone(q.tax),cond:clone(q.cond),advPct:q.advPct};
+    var i=DB.templates.findIndex(function(x){return x.name.toLowerCase()===nm.toLowerCase()});
+    if(i>=0)DB.templates[i]=t;else DB.templates.push(t);
+    saveDB();closeModal();toast('Plantilla guardada.');
+  },
+  useTpl:function(){
+    if(!DB.templates.length){openModal('<h3 style="font-size:26px">Plantillas</h3><p class="hint">Todavía no tenés plantillas. Armá un presupuesto con trabajos que repitas y tocá "Guardar como plantilla".</p><div class="dlg-b"><button class="btn" data-act="closeModal">Cerrar</button></div>');return}
+    openModal('<h3 style="font-size:26px">Usar plantilla</h3><div class="list">'+DB.templates.map(function(t){return '<div class="pkrow"><button class="pk" data-act="applyTpl" data-id="'+t.id+'"><span style="min-width:0;overflow-wrap:anywhere"><b>'+esc(t.name)+'</b><br><span class="hint">'+t.mats.length+' materiales · '+t.labor.length+' conceptos'+(t.serviceType?' · '+esc(t.serviceType):'')+'</span></span></button><button class="btn sm ghost danger" data-act="delTpl" data-id="'+t.id+'" aria-label="Eliminar plantilla">'+ic('trash')+'</button></div>'}).join('')+'</div><div class="dlg-b"><button class="btn" data-act="closeModal">Cerrar</button></div>');
+  },
+  applyTpl:async function(el){
+    var t=DB.templates.filter(function(x){return x.id===el.dataset.id})[0];if(!t)return;var q=S.draft;
+    var has=q.mats.concat(q.labor).some(function(r){return r.desc.trim()||String(r.price).trim()});
+    closeModal();
+    if(has){var ok=await ask('Se van a reemplazar los materiales, la mano de obra, los gastos y las condiciones de este presupuesto por los de la plantilla "'+t.name+'". El cliente, la dirección y las fechas no cambian. ¿Continuar?','Usar plantilla');if(!ok)return}
+    var c=clone(t);
+    q.mats=c.mats.length?c.mats.map(function(r){r.id=uid();return r}):[blankMat()];
+    q.labor=c.labor.length?c.labor.map(function(r){r.id=uid();return r}):[blankLab()];
+    q.extras=c.extras;q.discount=c.discount;q.tax=c.tax;q.cond=c.cond;q.advPct=c.advPct||'';
+    if(c.serviceType)q.serviceType=c.serviceType;if(c.description)q.description=c.description;
+    S.dirty=true;saveWorking();render();toast('Plantilla aplicada. Revisá cantidades y precios.');
+  },
+  delTpl:async function(el){closeModal();var ok=await ask('¿Eliminar esta plantilla? Los presupuestos ya hechos no cambian.','Eliminar',true);if(!ok)return;DB.templates=DB.templates.filter(function(x){return x.id!==el.dataset.id});saveDB();toast('Plantilla eliminada.')},
+  addPay:function(){
+    var q=S.draft,left=Math.max(0,calc(q).total-paidSoFar(q));
+    openModal('<h3 style="font-size:26px">Registrar pago</h3><p class="hint">Falta cobrar '+money(left)+'.</p>'+fld('Importe cobrado','pay-amt','<div class="adorn pre"><i>$</i><input id="pay-amt" class="inp" inputmode="decimal" placeholder="0,00"></div>')+fld('Nota (opcional)','pay-note','<input id="pay-note" class="inp" placeholder="Ej.: seña, transferencia">')+'<span class="err" id="pay-err" hidden></span><div class="dlg-b"><button class="btn" data-act="closeModal">Cancelar</button><button class="btn pri" data-act="savePay">Guardar pago</button></div>');
+  },
+  savePay:function(){
+    var q=S.draft,er=$('#pay-err'),left=Math.max(0,calc(q).total-paidSoFar(q)),v=P($('#pay-amt').value);
+    function bad(m){er.textContent=m;er.hidden=false}
+    if(v.err)return bad(v.err);if(v.empty||v.v<=0)return bad('Ingresá un importe mayor a 0.');
+    var c=Math.round(v.v*100);if(c>left)return bad('El importe supera lo que falta cobrar ('+money(left)+').');
+    q.payments.push({id:uid(),at:new Date().toISOString(),c:c,note:$('#pay-note').value.trim()});
+    closeModal();if(commit(q)){toast(c===left?'Cobraste el total. Ya podés marcarlo como pagado.':'Pago registrado.');render()}
+  },
+  followUp:function(el){var src=DB.quotes.filter(function(x){return x.id===el.dataset.id})[0];if(!src)return;S.draft=norm(clone(src));S.dirty=false;doFollow()},
+  followUpDoc:function(){doFollow()},
   toList:function(){var d=S.draft&&S.draft.status==='pagado';S.draft=null;go(d?'done':'quotes')},
-  markPaid:async function(){var q=S.draft,ok=await ask('¿Confirmás que cobraste '+money(calc(q).total)+'? El presupuesto pasa a Trabajos realizados y ya no se puede editar.','Marcar como pagado');if(!ok)return;q.status='pagado';q.paidAt=new Date().toISOString();if(commit(q)){toast('Pagado. Quedó en Trabajos realizados.');render()}},
-  undoPaid:async function(){var ok=await ask('¿Deshacer el pago? El presupuesto vuelve a Pendiente de pago.','Deshacer pago',true);if(!ok)return;var q=S.draft;q.status='aceptado';delete q.paidAt;if(commit(q)){toast('Vuelve a pendiente de pago');render()}},
+  markPaid:async function(){var q=S.draft,left=Math.max(0,calc(q).total-paidSoFar(q)),ok=await ask(left>0?(paidSoFar(q)?'Ya registraste '+money(paidSoFar(q))+'. ¿Confirmás que cobraste el saldo de '+money(left)+'? ':'¿Confirmás que cobraste '+money(left)+'? ')+'El presupuesto pasa a Trabajos realizados y ya no se puede editar.':'¿Confirmás el pago completo? El presupuesto pasa a Trabajos realizados y ya no se puede editar.','Marcar como pagado');if(!ok)return;if(left>0)q.payments.push({id:uid(),at:new Date().toISOString(),c:left,note:paidSoFar(q)?'Saldo':'Pago total',auto:true});q.status='pagado';q.paidAt=new Date().toISOString();if(commit(q)){toast('Pagado. Quedó en Trabajos realizados.');render()}},
+  undoPaid:async function(){var ok=await ask('¿Deshacer el pago? El presupuesto vuelve a Pendiente de pago.','Deshacer pago',true);if(!ok)return;var q=S.draft;q.status='aceptado';delete q.paidAt;q.payments=(q.payments||[]).filter(function(p){return !p.auto});if(commit(q)){toast('Vuelve a pendiente de pago');render()}},
   backEdit:function(){if(S.draft.status!=='borrador'){acts.modify();return}S.tried=false;go('edit')},
   cancelEdit:function(){if(isSaved(S.draft)){acts.openQuote({dataset:{id:S.draft.id}})}else{S.dirty=false;S.draft=null;clearWorking();go('quotes')}},
   addMat:function(){S.draft.mats.push(blankMat());var r=S.draft.mats[S.draft.mats.length-1];$('#mats').insertAdjacentHTML('beforeend',matRow(r,S.draft.mats.length-1));S.dirty=true;refreshCalc();var i=$('#mr-'+r.id+'-d');if(i)i.focus()},
@@ -981,18 +1130,18 @@ var acts={
   },
   pdf:function(){doPdf(S.draft)},
   pdfVersion:function(el){var v=S.draft.versions[+el.dataset.i];if(v)doPdf(v.q)},
-  wa:function(){var errs=validateExport(S.draft);if(errs.length){S.exportErr=errs;S.waOpen=false;render();window.scrollTo(0,0);return}S.exportErr=null;S.waOpen=true;S.waText=null;render()},
+  wa:function(){S.waFollow=false;var errs=validateExport(S.draft);if(errs.length){S.exportErr=errs;S.waOpen=false;render();window.scrollTo(0,0);return}S.exportErr=null;S.waOpen=true;S.waText=null;render()},
   waClose:function(){S.waOpen=false;render()},
   waCopy:async function(){var t=$('#wa-text').value;try{await navigator.clipboard.writeText(t);toast('Mensaje copiado')}catch(e){var ta=$('#wa-text');ta.focus();ta.select();toast('Seleccioné el texto, copialo manualmente.')}},
   dup:function(el){
     var src=DB.quotes.filter(function(x){return x.id===el.dataset.id})[0];if(!src)return;
-    var q=clone(src);q.id=uid();q.number=null;q.status='borrador';q.createdAt=todayISO();q.versions=[];delete q.updatedAt;delete q.paidAt;
+    var q=clone(src);q.id=uid();q.number=null;q.status='borrador';q.createdAt=todayISO();q.versions=[];delete q.updatedAt;delete q.paidAt;delete q.sentAt;delete q.followedAt;q.payments=[];norm(q);
     var v=P(DB.settings.validez);q.validUntil=addDays(q.createdAt,(v.err||v.empty)?15:Math.round(v.v));
     q.mats.forEach(function(m){m.id=uid()});q.labor.forEach(function(m){m.id=uid()});
     openEditor(q);toast('Copia lista para editar. Se numera al guardar.');
   },
   delQuote:async function(el){var ok=await ask('¿Eliminar este presupuesto? No se puede deshacer.','Eliminar',true);if(!ok)return;DB.quotes=DB.quotes.filter(function(x){return x.id!==el.dataset.id});saveDB();S.draft=null;S.dirty=false;toast('Presupuesto eliminado');go('quotes')},
-  setStatus:function(el){var q=S.draft;q.status=el.dataset.s;commit(q);toast('Estado: '+STATUS[q.status]);render()},
+  setStatus:function(el){var q=S.draft;q.status=el.dataset.s;if(q.status==='enviado'){q.sentAt=new Date().toISOString();delete q.followedAt}commit(q);toast('Estado: '+STATUS[q.status]);render()},
   newClient:function(){go('client-edit',{client:{}})},
   editClient:function(el){go('client-edit',{client:clone(clientById(el.dataset.id))})},
   delClient:async function(el){var c=clientById(el.dataset.id),n=DB.quotes.filter(function(q){return q.clientId===c.id}).length;
@@ -1011,6 +1160,7 @@ function pickClient(sel){
 
 /* ============ Eventos ============ */
 document.addEventListener('click',function(e){
+  var wl=e.target.closest('#wa-link');if(wl&&S.waFollow&&S.draft&&isSaved(S.draft)&&!S.dirty){S.draft.followedAt=new Date().toISOString();commit(S.draft)}
   var g=e.target.closest('[data-go]');
   if(g){go(g.dataset.go,g.dataset.go==='settings'?{settings:null}:{});return}
   var a=e.target.closest('[data-act]');
@@ -1020,6 +1170,7 @@ document.addEventListener('click',function(e){
 });
 document.addEventListener('input',function(e){
   var t=e.target;
+  if(t.id==='pk-q'){$('#pk-list').innerHTML=pkList(t.dataset.pkq,t.value);return}
   if(t.id==='dsearch'){S.dq=t.value;$('#dlist').innerHTML=doneInner();return}
   if(t.id==='qsearch'){S.q=t.value;var term=S.q.trim().toLowerCase();var list=DB.quotes.filter(function(q){if(q.status==='pagado')return false;var st=effStatus(q);if(S.f!=='todos'&&st!==S.f)return false;if(!term)return true;return numNo(q.number||0).indexOf(term.replace(/^n°?\s*/,''))>=0||(q.client.name||'').toLowerCase().indexOf(term)>=0}).sort(function(a,b){return (b.number||0)-(a.number||0)});$('#qlist').innerHTML=qListInner(list);return}
   if(t.id==='wa-text'){S.waText=t.value;var l=$('#wa-link');if(l)l.href=waHref(waPhone(S.draft.client.tel),t.value);return}
@@ -1040,10 +1191,19 @@ document.addEventListener('change',function(e){
   if(t.id==='restore'&&t.files&&t.files[0]){
     var rd=new FileReader();rd.onload=async function(){try{var d=JSON.parse(rd.result);if(!d||!Array.isArray(d.quotes)||!Array.isArray(d.clients))throw 0;
       var ok=await ask('Se reemplazan los datos actuales por los de la copia ('+d.quotes.length+' presupuestos, '+d.clients.length+' clientes). ¿Continuar?','Restaurar',true);if(!ok)return;
-      var b=defaults();DB={version:1,counter:+d.counter||0,clients:d.clients,quotes:d.quotes,settings:Object.assign(b.settings,d.settings||{})};saveDB();S.settings=null;toast('Copia restaurada');go('home')}catch(x){toast('Ese archivo no es una copia válida de ElectroPresupuesto.')}};rd.readAsText(t.files[0]);t.value=''}
+      var b=defaults();DB={version:1,counter:+d.counter||0,clients:d.clients,quotes:d.quotes.map(norm),catalog:Array.isArray(d.catalog)?d.catalog:[],templates:Array.isArray(d.templates)?d.templates:[],settings:Object.assign(b.settings,d.settings||{})};saveDB();S.settings=null;toast('Copia restaurada');go('home')}catch(x){toast('Ese archivo no es una copia válida de ElectroPresupuesto.')}};rd.readAsText(t.files[0]);t.value=''}
 });
 document.addEventListener('submit',function(e){
   e.preventDefault();var f=e.target;
+  if(f.id==='catform'){
+    var d=$('#ct-desc').value.trim(),er3=$('#ct-err'),pr=P($('#ct-price').value),tp=$('#ct-type').value;
+    function bad3(m){er3.textContent=m;er3.hidden=false}
+    if(!d)return bad3('Escribí la descripción.');if(pr.err)return bad3(pr.err);if(pr.empty)return bad3('Ingresá el precio (0 si no tiene costo).');
+    var o={id:S.catEdit||uid(),type:tp,desc:d,unit:tp==='mat'?$('#ct-unit').value:'',price:String(pr.v).replace('.',',')};
+    var i=S.catEdit?DB.catalog.findIndex(function(x){return x.id===S.catEdit}):DB.catalog.findIndex(function(x){return x.type===tp&&x.desc.toLowerCase()===d.toLowerCase()});
+    if(i>=0){o.id=DB.catalog[i].id;DB.catalog[i]=o}else DB.catalog.push(o);
+    S.catEdit=null;saveDB();toast('Guardado en el catálogo.');render();return;
+  }
   if(f.id==='cform'){
     var n=$('#c-name').value.trim(),er=$('#c-err'),em=$('#c-mail').value.trim();
     if(!n){er.textContent='Escribí el nombre del cliente.';er.hidden=false;$('#c-name').focus();return}
